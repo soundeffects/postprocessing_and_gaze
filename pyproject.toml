@@ -1,0 +1,13 @@
+[project]
+name = "postprocessing-and-gaze"
+version = "0.1.0"
+description = "Add your description here"
+readme = "readme.md"
+requires-python = ">=3.12"
+dependencies = [
+    "opencv-python>=4.11.0.86",
+    "scipy>=1.15.2",
+    "tensorboardx>=2.6.2.2",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+]
