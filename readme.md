@@ -19,3 +19,6 @@ If you find this work useful, please cite it as follows (proper bibtex citation 
 
 ## License
 This project is licensed under the Apache License 2.0 - see the `license` file for details.
+
+## TODO
+- [ ] Cite datasets used (MIT300, MIT1003, CAT2000, COCO-Search18)
