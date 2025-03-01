@@ -1,2 +1,4 @@
 datasets
 .venv
+references
+.DS_Store
