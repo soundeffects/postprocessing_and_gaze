@@ -2,8 +2,6 @@ import numpy
 import os
 from PIL import Image
 
-
-
 def default_filter_set():
   return {
     "gaussian_noise": gaussian_noise,

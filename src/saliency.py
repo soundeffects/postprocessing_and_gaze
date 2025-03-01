@@ -1,5 +1,4 @@
 import os
-from unisal.unisal.train import Trainer
 from pathlib import Path
 
 def generate_saliency_maps(dataset_path, model_path, verbose=False): 
