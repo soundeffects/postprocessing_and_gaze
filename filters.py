@@ -133,16 +133,13 @@ def bloom_filter(image: ndarray, strength: float = 1) -> ndarray:
     """
     Apply a bloom filter, which bleeds bright colors into the surrounding
     area of the image.
-    NOTE: Not very effective at the moment.
     """
     bounded_strength(strength)
     signal = normalize_image(image)
-    r = int(strength) * 4
-    blurred = gaussian_filter(signal, strength * 2, radius=(r, r, 0))
-    bloom_ratios = zeros(image.shape)
-    for index in ndindex(image.shape):
-        bloom_ratios[index] = sum(blurred[index]) / (3 * 255)
-    return clip_image(signal * (1 - bloom_ratios) + blurred * bloom_ratios)
+    bright = (signal > 192).astype(uint8)
+    r = int(strength) * 2
+    bloom = gaussian_filter(signal * bright, strength, radius=(r, r, 0))
+    return clip_image(bloom * (strength / 10) + signal)
 
 def invert(image: ndarray, strength: float = 1) -> ndarray:
     """

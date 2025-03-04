@@ -67,8 +67,10 @@ metrics = [
     'base_information_gain_log',
     'filtered_information_gain',
     'filtered_information_gain_log',
-    'information_gain_difference',
-    'information_gain_difference_log'
+    'information_asymmetry',
+    'information_asymmetry_log',
+    'information_asymmetry_per_difference',
+    'information_asymmetry_per_difference_log'
 ]
 
 def list_relative_paths(path: Path) -> list[Path]:
@@ -140,16 +142,7 @@ def image_difference(image_1: ndarray, image_2: ndarray) -> float:
     assert image_1.shape == image_2.shape
     return ((image_1 - image_2) ** 2).sum() / image_1.size
 
-def iterate_filter(image: ndarray, filter: callable, iterations: int) -> ndarray:
-    """
-    Apply a filter to an image a given number of times.
-    """
-    data = image
-    for _ in range(iterations):
-        data = filter(data)
-    return data
-
-def apply_filters(data_directory: str, filters: list[callable], filter_subdivisions: int, verbose: bool = False):
+def apply_filters(data_directory: str, filters: list[callable], strength_subdivisions: int = 10, verbose: bool = False):
     """
     Apply a list of filters to all images in a given directory.
     """
@@ -164,17 +157,16 @@ def apply_filters(data_directory: str, filters: list[callable], filter_subdivisi
                     image = Image.open(image_path)
                     image_data = array(image)
                     for filter in filters:
-                        missed_iterations = 1
-                        for i in range(filter_subdivisions):
-                            new_image_path = dataset / f"{filter.__name__}_{i}" / 'images' / filename
-                            if new_image_path.exists():
-                                missed_iterations += 1
+                        for i in range(strength_subdivisions):
+                            new_filter_path = dataset / f"{filter.__name__}_{i}"
+                            new_image_path = new_filter_path / 'images' / filename
+                            if not new_filter_path.exists():
+                                (new_filter_path / 'images').mkdir(parents=True)
+                            elif new_image_path.exists():
                                 continue
                             if verbose:
                                 print(f"Creating {new_image_path} with {filter.__name__} filter")
-                            image_data = iterate_filter(image_data, filter, missed_iterations)
-                            missed_iterations = 1
-                            Image.fromarray(image_data).save(new_image_path)
+                            Image.fromarray(filter(image_data, i)).save(new_image_path)
 
 def generate_saliency_maps(data_directory: str, unisal_path: str, verbose: bool = False):
     """
@@ -183,16 +175,18 @@ def generate_saliency_maps(data_directory: str, unisal_path: str, verbose: bool 
     """
     unisal = Trainer.init_from_cfg_dir(Path(unisal_path))
     unisal.model.to(device)
-    for dataset in Path(data_directory).resolve().iterdir():
+    data_path = Path(data_directory).resolve()
+    for dataset in data_path.iterdir():
         for root, directories, _ in dataset.walk():
             if 'images' in directories:
                 image_set = set(list_relative_paths(root / 'images'))
                 saliency_set = set(list_relative_paths(root / 'saliency'))
                 if len(image_set.difference(saliency_set)) == 0:
                     continue
+                source = dataset.relative_to(data_path).name
                 if verbose:
                     print(f"Generating saliency maps for {root}")
-                unisal.generate_predictions_from_path(Path(root), is_video=False, source='SALICON')
+                unisal.generate_predictions_from_path(Path(root), is_video=False, source=source)
 
 def compute_metrics(data_directory: str, verbose: bool = False):
     """
@@ -232,6 +226,8 @@ def compute_metrics(data_directory: str, verbose: bool = False):
                     base_information_gain_log = information_gain(base_density_log, log=True)
                     filtered_information_gain = information_gain(filtered_density)
                     filtered_information_gain_log = information_gain(filtered_density_log, log=True)
+                    information_asymmetry = filtered_information_gain - base_information_gain
+                    information_asymmetry_log = filtered_information_gain_log - base_information_gain_log
                     metrics_writer.writerow([
                         filter_path.name,
                         image_path.name,
@@ -244,8 +240,10 @@ def compute_metrics(data_directory: str, verbose: bool = False):
                         base_information_gain_log,
                         filtered_information_gain,
                         filtered_information_gain_log,
-                        filtered_information_gain - base_information_gain,
-                        filtered_information_gain_log - base_information_gain_log
+                        information_asymmetry,
+                        information_asymmetry_log,
+                        information_asymmetry / image_difference_value,
+                        information_asymmetry_log / image_difference_value
                     ])
                 if verbose:
                     print(f"Computing metrics for {filter_path}")
