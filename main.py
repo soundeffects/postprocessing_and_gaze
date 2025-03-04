@@ -1,10 +1,10 @@
 from argparse import ArgumentParser
 from csv import DictReader, DictWriter, writer
-from numpy import ndarray, uint8, clip, exp, sum, load, array, mean, median, std
-from numpy.random import normal
+from filters import all_filters, filter_names
+from numpy import ndarray, exp, sum, load, array, mean, median, std
 from pathlib import Path
 from PIL import Image
-from scipy.ndimage import zoom, gaussian_filter
+from scipy.ndimage import zoom
 from scipy.special import logsumexp, rel_entr
 from torch import cuda, backends, set_default_device
 from typing import Optional
@@ -40,8 +40,8 @@ parser.add_argument('--no-aggregate-metrics', action='store_true', default=False
     help='Do not perform the `aggregate_metrics` step. Will store results in \
     the data directory.')
 parser.add_argument('--omit-filters', nargs='*', default=[],
-    help='Specify a list of filters to omit from the analysis. Filters include \
-    `gaussian_blur` and `gaussian_noise`.')
+    help='Specify a list of filters to omit from the analysis. Filters \
+    include: ' + ', '.join(filter_names))
 args = parser.parse_args()
 
 # Set device to CUDA or MPS if available, otherwise use CPU
@@ -76,24 +76,6 @@ def list_relative_paths(path: Path) -> list[Path]:
     List all files in a given directory relative to the given path.
     """
     return [ filename.relative_to(path) for filename in path.glob('*') ]
-
-def normalize_image(image: ndarray, rescale: bool = False) -> ndarray:
-    """
-    Normalize the intensity values of an image to be within the range of 
-    [0, 255]. The 'rescale' parameter will move the relative scale such that the
-    minimum intensity value of the image will be zero.
-    """
-    min_value = 0
-    if rescale or image.min() < 0:
-        min_value = image.min()
-    return ((image - min_value) / (image.max() - min_value) * 255).astype(uint8)
-
-def clip_image(image: ndarray, min_value: float = 0, max_value: float = 255) -> ndarray:
-    """
-    Clip the intensity values of an image to be within the range
-    [min_value, max_value].
-    """
-    return clip(image, min_value, max_value).astype(uint8)
 
 def is_pdf(function: ndarray) -> bool:
     """
@@ -158,21 +140,6 @@ def image_difference(image_1: ndarray, image_2: ndarray) -> float:
     assert image_1.shape == image_2.shape
     return ((image_1 - image_2) ** 2).sum() / image_1.size
 
-def gaussian_noise(image: ndarray, sigma: float = 16) -> ndarray:
-    """
-    Add Gaussian noise to an image.
-    """
-    signal = normalize_image(image)
-    noise = normal(0, sigma, image.shape)
-    return clip_image(signal + noise)
-
-def gaussian_blur(image: ndarray, sigma: float = 1) -> ndarray:
-    """
-    Apply a Gaussian blur to an image.
-    """
-    signal = normalize_image(image)
-    return clip_image(gaussian_filter(signal, sigma))
-
 def iterate_filter(image: ndarray, filter: callable, iterations: int) -> ndarray:
     """
     Apply a filter to an image a given number of times.
@@ -198,7 +165,7 @@ def apply_filters(data_directory: str, filters: list[callable], filter_subdivisi
                     image_data = array(image)
                     for filter in filters:
                         missed_iterations = 1
-                        for i in range(iterations):
+                        for i in range(filter_subdivisions):
                             new_image_path = dataset / f"{filter.__name__}_{i}" / 'images' / filename
                             if new_image_path.exists():
                                 missed_iterations += 1
@@ -345,7 +312,6 @@ def aggregate_metrics(data_directory: str, verbose: bool = False):
 
 # Run computation steps
 if not args.no_apply_filters:
-    all_filters = [gaussian_noise, gaussian_blur]
     filters = list(filter(lambda x: x not in args.omit_filters, all_filters))
     apply_filters(args.data_directory, filters, args.filter_subdivisions, args.verbose)
 if not args.no_compute_saliency:
