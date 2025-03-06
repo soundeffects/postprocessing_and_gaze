@@ -129,7 +129,7 @@ def information_gain(p: ndarray, log: bool = False) -> float:
     set to 'True', the distributions are assumed to be log density
     distributions.
     """
-    center_bias = load('src/centerbias_mit1003.npy')
+    center_bias = load('centerbias_mit1003.npy')
     scaling_shape = (p.shape[0] / center_bias.shape[0], p.shape[1] / center_bias.shape[1])
     center_bias = to_density(zoom(center_bias, scaling_shape, order=0, mode='nearest'), log)
     return kl_div(p, center_bias, log)
@@ -157,7 +157,7 @@ def apply_filters(data_directory: str, filters: list[callable], strength_subdivi
                     image = Image.open(image_path)
                     image_data = array(image)
                     for filter in filters:
-                        for i in range(strength_subdivisions):
+                        for i in range(1, strength_subdivisions + 1, 1):
                             new_filter_path = dataset / f"{filter.__name__}_{i}"
                             new_image_path = new_filter_path / 'images' / filename
                             if not new_filter_path.exists():
@@ -194,14 +194,14 @@ def compute_metrics(data_directory: str, verbose: bool = False):
     produced from filtered images and the base saliency map.
     """
     for dataset in Path(data_directory).resolve().iterdir():
-        if not dataset.is_dir():
+        if not dataset.is_dir() or (dataset / 'metrics.csv').exists():
             continue
         base_path = dataset / 'base'
         with open(dataset / 'metrics.csv', 'w') as metrics_file:
             metrics_writer = writer(metrics_file)
             metrics_writer.writerow(['filter_name', 'image_name'] + metrics)
             for filter_path in dataset.iterdir():
-                if not filter_path.is_dir() or filter_path == base_path:
+                if not filter_path.is_dir() or filter_path == base_path or filter_path.name.startswith('barrel_distortion'):
                     continue
                 # Find intersection of image paths from all four sources being
                 # compared
@@ -219,6 +219,9 @@ def compute_metrics(data_directory: str, verbose: bool = False):
                     base_density_log = to_density(base_saliency, log=True)
                     filtered_density = to_density(filtered_saliency)
                     filtered_density_log = to_density(filtered_saliency, log=True)
+                    if base_image.shape != filtered_image.shape:
+                        print(f"Image 1 shape: {base_image.shape}, Image 2 shape: {filtered_image.shape}")
+                        print(f"Image 1 path: {base_path / 'images' / image_path}, Image 2 path: {filter_path / 'images' / image_path}")
                     image_difference_value = image_difference(base_image, filtered_image)
                     saliency_divergence = kl_div(base_density, filtered_density)
                     saliency_divergence_log = kl_div(base_density_log, filtered_density_log, log=True)
@@ -277,7 +280,7 @@ def aggregate_metrics(data_directory: str, verbose: bool = False):
                         general_data[filter_name][key].extend(filter_rows[key])
                 aggregate_writer.writerow(aggregate_row)
         for dataset in data_path.iterdir():
-            if not dataset.is_dir() and (dataset / 'metrics.csv').exists():
+            if not (dataset.is_dir() and (dataset / 'metrics.csv').exists()):
                 continue
             if verbose:
                 print(f'Reading metrics file for {dataset}')
