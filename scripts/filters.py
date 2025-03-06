@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from cv2 import COLOR_HSV2RGB, COLOR_RGB2GRAY, COLOR_RGB2HSV, cvtColor, COLOR_RGB2LAB, COLOR_LAB2RGB, split, merge, createCLAHE
-from kromo import add_chromatic, add_jitter, blend_images
+from scripts.kromo import add_chromatic, add_jitter, blend_images
 from matplotlib import pyplot
 from numpy import mod, ndarray, uint8, clip, array, ndindex, sqrt, zeros, sum, roll, repeat, newaxis
 from numpy.random import normal, default_rng

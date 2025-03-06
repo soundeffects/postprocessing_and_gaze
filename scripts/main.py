@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from csv import DictReader, DictWriter, writer
-from filters import all_filters, filter_names
+from scripts.filters import all_filters, filter_names
 from numpy import ndarray, exp, sum, load, array, mean, median, std
 from pathlib import Path
 from PIL import Image

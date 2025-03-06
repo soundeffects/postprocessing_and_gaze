@@ -10,7 +10,7 @@ need to run the following commands.
 ```bash
 git submodule init
 git submodule update
-uv run main.py
+uv run scripts/main.py
 ```
 
 We also provide a `requirements.txt` file, in case you would like to manage your
