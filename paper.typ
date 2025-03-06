@@ -1,26 +1,68 @@
 #import "@preview/arkheion:0.1.0": arkheion, arkheion-appendices
 
 #show: arkheion.with(
-  title: "Effects of Stylistic Post-Processing Image Filters on Gaze Fixation Prediction",
+  title: "Gaze Fixation Prediction for Stylized Images",
   authors: (
     (name: "James Youngblood", email: "james@youngbloods.org", affiliation: "University of Utah"),
     (name: "Rogelio Cardona-Rivera", email: "r.cardona.rivera@utah.edu", affiliation: "University of Utah")
   ),
   abstract: "We study the effects of stylistic post-processing image filters on gaze fixation prediction.",
   keywords: ("gaze fixation prediction", "image filters", "stylistic post-processing"),
-  date: datetime.today(),
+  date: datetime.today().display(),
 )
 
 = Introduction
-= Motivation
+We are trying to apply gaze fixation prediction to games, shows, interactive applications, and virtual environments in general. This will allow designers to have a better understanding of how users interact with their work, as well as what elements grab users' attention. This can allow them to iterate and improve their work quickly, without as much human testing.
+
+Gaze fixation prediction has been shown to generalize well to a few domains, including still life images, movies, and TV. #emph(text(red)[Citation needed.]) It may be reasonable to assume that it will generalize to photo-realistic environments and games as well. #emph(text(orange)[Citation desired.]) There is concern, however, that gaze fixation prediction models may not generalize to stylistic renders as well, because of the lack of training data.
+
+Gathering more training data is a difficult task, due to eye-tracking equipment and the time required from many human subjects. Further, the domain of stylized images is large and varied, and training without prior knowledge of potential weaknesses of the model will be time-consuming.
+
+We contribute an experiment which investigates the effects of stylistic post-processing on images on the gaze fixation prediction of models. Our experiment attempts to isolate those effects which perturb the prediction compared to the non-stylized image the most. Using perceptual theory, we speculate on the reasons for why these effects might be so destructive to the existing prediction, and posit that these effects should recieve highest priority for additional training data.
+
+Our experiment can also be used as a model for discovery of lacking training data for other image effects which we have not yet studied.
+
 = Related Work
-= Methodology
-= Experiments
+The models used in this experiment, and their previous training data. #emph(text(red)[Citation needed.]) In contrast to our method, the training data used for the original methods use traditional photography and video shoots, which are not very representative of the range of styles in illustration, animation, or computer graphics.
+
+The study on where people look at for artwork in museums. #emph(text(red)[Citation needed.]) In contrast to our method, they have gathered a set of human eye-tracking data over oil paintings in museums. This can be used as training data for gaze fixation prediction models, and potentially address some pitfalls of current models, but does not cover the breadth of styles we want to study.
+
+= Background
+Annual review of vision prediction. #emph(text(red)[Citation needed.]) This is a review of the field of gaze fixation prediction, and it provides the theoretical foundation from which our experiment builds. The following terms and operations are as defined in the review. #emph(text(red)[Also include the original papers these techniques were published in.])
+
+We define the term gaze densities: the probability distribution of gaze fixations over an image, as opposed to a saliency map which has an underdefined scale. We can computer the gaze density from a saliency map by dividing by the sum of the saliency map. There exists a "baseline" gaze density that is not a function of the image, which predicts human visual behavior as best possible without reading the image data. It is called the "center bias", because humans will typically look to the center of an image more than the edges.
+
+We define two operations on gaze densities: KL-divergence, which measures the difference between two probability distributions in terms of the number of bits required to describe the difference between them (and maybe the Jensen-Shannon divergence, which is a symmetrized and smoothed version of the KL divergence). We also describe the information gain, which is the KL-divergence from the center bias, which describes the complexity of the prediction, or the amount of information that the model was able to extract from the image.
+
+Visual perception theory. #emph(text(orange)[Citation desired.]) (Debating on whether to include this.)
+
+= Method
+We formalize our method as computing the KL divergence and difference of information gain between two gaze densities produced by the model from two images, an original and a stylized post-processing of the original. We apply the stylization at relative strengths, such that we can study whether a stylization has non-linear effects on the prediction.
+
+So that we can compare the effects of different stylizations, we normalize the KL-divergence and information gain difference by the size of the image and the least-squares difference between the stylization and the original image. The resulting metric tells us the effect size per pixel of the image, per pixel intensity value altered by the stylization. We compute the mean, median, and standard deviation of these normalized metrics across all images for a given stylization.
+
+We use the divergence and information gain difference resulting from random noise as a control group for the comparison of effects of stylizations. If a stylization produces lower metrics than random noise, the stylization has little effect on the prediction produced by the model, and vice versa for higher metrics.
+
+If a stylization produces metrics significantly different from random noise, whether lower or higher, and if an explanation for the effect based on human visual behavior can't be produced, it warrants further study and training for the model. The same can be said for metrics which are not significantly different, contrary to expectation from human visual behavior.
+
+= Experiment
+We use MIT300 and MIT1003 image datasets. #emph(text(red)[Citation needed.]) (Will try to add more datasets later.)  We apply our selected stylization effects to each of these images, in varying levels from 1 to 10 "strength", where strength is an arbtrary measure for applying a filter with greater pixel difference. Because we recognize that strength is not on a well-defined scale, we normalize our results by the pixel difference as mentioned in the Method section.
+
+We use the UNISAL model for saliency prediction. It is one of the top performing models on the MIT/Tuebingen saliency benchmark. #emph(text(red)[Citation needed.]) (Will try to add more models later.) We had to convert the saliency maps we generated with UNISAL to gaze densities by dividing by the sum of the saliency map, before performing any metric computations.
+
+We focus on post-processing effects that are particularly relevant to our motivating use cases, including games, shows, and virtual environments. Therefore, we gather a few classes of effects from the paper on NPR rendering and the open source image editing software GIMP. #emph(text(red)[Citation needed.]) We gather from the NPR rendering paper that edge-enhancement, color-space adjustment, and frequency-filtering (similar to texture filtering) are important effects. We gather from GIMP that digital distortions are also important stylization effects.
+
+The effects included in edge-enhancement are difference-of-gaussians edge darkening (for two different sizes of gaussian kernels), and the Kuwahara filter. #emph(text(red)[Citation needed.])
+
+The effects included in color-space adjustment are color-quantization, hue shift, saturation shift, contrast shift, color inversion, shadow darkening, and vignette.
+
+The effects included in frequency-filtering are gaussian blur, gaussian high-pass, horizontal blur, vertical blur, focus blur, and bloom.
+
+The effects included in digital distortions are pixelation, row shift, screen-door effect, and chromatic aberration.
+
+After applying all stylization effects to all images and producing gaze densities for each, we compute the KL divergence and information gain difference between each pair of original images and stylized counterparts, along with their gaze densities. We normalize these two metrics by the pixel difference between the original and stylized images as mentioned in the Method section.
+
+Finally, after computing the two metrics for each stylization, we aggregate the data by computing the mean, median, and standard deviation of the metrics across all images for a given stylization by dataset. We also compute a general mean, median, and standard deviation across all datasets and all stylizations.
+
 = Results
 = Conclusion
-
-#show: arkheion-appendices
-=
-
-== Appendix section
-#lorem(100)
