@@ -1,42 +1,40 @@
-#import "@preview/arkheion:0.1.0": arkheion, arkheion-appendices
+#import "@preview/charged-ieee:0.1.3": ieee
 
-#show: arkheion.with(
-  title: "Gaze Fixation Prediction for Stylized Images",
+#show: ieee.with(
+  title: [Gaze Fixation Prediction for Stylized Images],
   authors: (
-    (name: "James Youngblood", email: "james@youngbloods.org", affiliation: "University of Utah"),
-    (name: "Rogelio Cardona-Rivera", email: "r.cardona.rivera@utah.edu", affiliation: "University of Utah")
+    (name: "James Youngblood", email: "james@youngbloods.org", organization: [University of Utah]),
+    (name: "Rogelio Cardona-Rivera", email: "r.cardona.rivera@utah.edu", organization: [University of Utah])
   ),
-  abstract: "We study the effects of stylistic post-processing image filters on gaze fixation prediction.",
-  keywords: ("gaze fixation prediction", "image filters", "stylistic post-processing"),
-  date: datetime.today().display(),
+  abstract: [We study the effects of stylistic post-processing image filters on gaze fixation prediction.],
+  index-terms: ("gaze fixation prediction", "image filters", "stylistic post-processing"),
+  bibliography: bibliography("paper.bib"),
 )
 
 = Introduction
-We are trying to apply gaze fixation prediction to games, shows, interactive applications, and virtual environments in general. This will allow designers to have a better understanding of how users interact with their work, as well as what elements grab users' attention. This can allow them to iterate and improve their work quickly, without as much human testing.
+Visual media producers (including movie and game studios) learn how a viewer will direct their gaze over an image, and apply this knowledge to their craft. This assists their efforts towards pleasing image compositions (i.e. the "rule of thirds"), or estimates the situational awareness of the viewer (i.e. the killer hiding in the background). In order to exert maximum control over the viewing experience, producers must intuit a complex model of typical visual behavior for each image of the final work, or rely on lengthy human trials tracking the gaze of a number of subjects. Alternatively, they might utilize computational models of gaze fixation, as has already been applied to web design #emph(text(red)[(citation needed)]). Recent advancements in the field of computational gaze fixation prediction have shown the potential to provide feedback of similar accuracy and fidelity to human trials in real-time, and we believe that these advancements are an important step towards greater automation of the production of visual and virtual experiences.
 
-Gaze fixation prediction has been shown to generalize well to a few domains, including still life images, movies, and TV. #emph(text(red)[Citation needed.]) It may be reasonable to assume that it will generalize to photo-realistic environments and games as well. #emph(text(orange)[Citation desired.]) There is concern, however, that gaze fixation prediction models may not generalize to stylistic renders as well, because of the lack of training data.
+Much of visual media used for entertainment or virtual interaction use stylization, sometimes referred to as "expressive rendering" #emph(text(red)[(citation needed)]). This may diverge significantly from photo-realistic lighting, geometry, or other core assumptions of existing gaze fixation prediction models #emph(text(red)[(citation needed)]). Studies have shown that image transformations influence gaze fixations, often in unpredictable ways @gaze-transformations. To verify whether predictions are accurate, and to better train predictions if they are erratic, human trials must be conducted to gather data. Eye-tracking equipment and the number of human subjects required make this a costly task, and the domain of stylization techniques we might want to verify is vast.
 
-#emph(text(red)[Add section about the difference between image-space post-processing stylization and world-space geometry stylization.])
-
-Gathering more training data is a difficult task, due to eye-tracking equipment and the time required from many human subjects. Further, the domain of stylized images is large and varied, and training without prior knowledge of potential weaknesses of the model will be time-consuming.
-
-We contribute an experiment which investigates the effects of stylistic post-processing on images on the gaze fixation prediction of models. Our experiment attempts to isolate those effects which perturb the prediction compared to the non-stylized image the most. Using perceptual theory, we speculate on the reasons for why these effects might be so destructive to the existing prediction, and posit that these effects should recieve highest priority for additional training data.
-
-Our experiment can also be used as a model for discovery of lacking training data for other image effects which we have not yet studied.
+We contribute a method for prioritizing the study of any set of image altering algorithms, and we apply our method to study a selection of common image post-processing effects. In short, our method relies on two metrics as heuristics for prioritization: the divergence of model predictions for altered images from the prediction for the original image, as well as the divergence of both the original and altered images from a baseline. We posit that effects which are significant outliers in these heuristics are most important to justify or disprove, using either human trials or psychology and visual perception theory.
 
 = Related Work
-The models used in this experiment, and their previous training data. #emph(text(red)[Citation needed.]) In contrast to our method, the training data used for the original methods use traditional photography and video shoots, which are not very representative of the range of styles in illustration, animation, or computer graphics.
+Effects of transformations on gaze behavior @gaze-transformations.
 
-The study on where people look at for artwork in museums. #emph(text(red)[Citation needed.]) In contrast to our method, they have gathered a set of human eye-tracking data over oil paintings in museums. This can be used as training data for gaze fixation prediction models, and potentially address some pitfalls of current models, but does not cover the breadth of styles we want to study.
+The effects of digital image alterations on gaze behavior was studied by Quian Quiroga et al. @quianquiroga, in which experiment they made simple edits using Photoshop for a set of paintings, and studied the number of gaze fixations for selected regions of both original and edited images. Their method contrasts with ours in the scale of their experiment. They use a small number of paintings and manual edits with carefully selected regions of interest in order to confirm artistic compositional principles. We aim to study a wide variety of computationally-modelled image alteration effects on large image datasets, and to run a gaze prediction model on all images. Our method can be performed without human input for each image, allowing a greater scale of data, which in turn allows for statistical analysis and generalizable conclusions.
 
 = Background
+The benchmark with the widest adoption for gaze fixation prediction models is the MIT/Tuebingen Saliency Benchmark @mit-tuebingen, which compiles a list of community-submitted models and analytically computes the fairest saliency map predicted by that model @made-easy when evaluated for each of a set of metrics @saliency-metrics on a couple of image datasets @mit300 @cat2000. Note that "saliency map" is an overloaded term in computer vision literature, but for the field of gaze fixation prediction, it is the output of a prediction model and can be transformed to be a probability distribution of gaze fixations @model-comparison, which we will refer to as a "gaze density".
+
+The top contenders on the MIT/Tuebingen saliency benchmark are all deep-learning approaches to the gaze fixation prediction problem @deepgazeiie. Deep learning models are prone to overfitting to training data. 
+
+The models used in this experiment, and their previous training data. #emph(text(red)[Citation needed.]) In contrast to our method, the training data used for the original methods use traditional photography and video shoots, which are not very representative of the range of styles in illustration, animation, or computer graphics.
+
 Annual review of vision prediction. #emph(text(red)[Citation needed.]) This is a review of the field of gaze fixation prediction, and it provides the theoretical foundation from which our experiment builds. The following terms and operations are as defined in the review. #emph(text(red)[Also include the original papers these techniques were published in.])
 
-We define the term gaze densities: the probability distribution of gaze fixations over an image, as opposed to a saliency map which has an underdefined scale. We can computer the gaze density from a saliency map by dividing by the sum of the saliency map. There exists a "baseline" gaze density that is not a function of the image, which predicts human visual behavior as best possible without reading the image data. It is called the "center bias", because humans will typically look to the center of an image more than the edges.
+There exists a "baseline" gaze density that is not a function of the image, which predicts human visual behavior as best possible without reading the image data. It is called the "center bias", because humans will typically look to the center of an image more than the edges.
 
 We define two operations on gaze densities: KL-divergence, which measures the difference between two probability distributions in terms of the number of bits required to describe the difference between them (and maybe the Jensen-Shannon divergence, which is a symmetrized and smoothed version of the KL divergence). We also describe the information gain, which is the KL-divergence from the center bias, which describes the complexity of the prediction, or the amount of information that the model was able to extract from the image.
-
-Visual perception theory. #emph(text(orange)[Citation desired.]) (Debating on whether to include this.)
 
 = Method
 We formalize our method as computing the KL divergence and difference of information gain between two gaze densities produced by the model from two images, an original and a stylized post-processing of the original. We apply the stylization at relative strengths, such that we can study whether a stylization has non-linear effects on the prediction.

@@ -3,4 +3,6 @@ datasets
 references
 .DS_Store
 data
+performance_data
+heuristics_data
 __pycache__

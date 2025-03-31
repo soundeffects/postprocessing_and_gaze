@@ -13,13 +13,14 @@ from unisal.unisal.train import Trainer
 # Description of command line arguments
 parser = ArgumentParser(description='Compute predicted saliency metrics when \
 applying post processing image filters to a given set of images.')
-parser.add_argument('--data-directory', type=str, default='data',
+parser.add_argument('--data-directory', type=str, default='heuristics_data',
     help='The directory containing the image datasets to study.')
 parser.add_argument('--filter-subdivisions', type=int, default=10,
     help='Specify how many subdivisions of filter strength (between minimum \
     and maximum strength as defined in filter code) with which to apply \
     filters.')
-parser.add_argument('--unisal-path', type=str, default='unisal/training_runs/pretrained_unisal',
+parser.add_argument('--unisal-path', type=str,
+    default='unisal/training_runs/pretrained_unisal',
     help='The path to the pre-trained UNISAL model.')
 parser.add_argument('--verbose', action='store_true', default=False,
     help='Verbose logging.')
