@@ -7,7 +7,7 @@ from unisal.unisal.train import Trainer
 parser = ArgumentParser(description='Compute predicted saliency metrics for \
 a set of images and their transformations, and check their similiarity to \
 measured gaze distributions.')
-parser.add_argument('--data-directory', type=str, default='performance_data',
+parser.add_argument('--data-directory', type=str, default='../performance_data',
     help='The directory containing the image datasets to study.')
 parser.add_argument('--unisal-path', type=str,
     default='unisal/training_runs/pretrained_unisal',
@@ -56,10 +56,9 @@ def generate_saliency_maps(data_directory: str, unisal_path: str, verbose: bool 
                 saliency_set = set(list_relative_paths(root / 'saliency'))
                 if len(image_set.difference(saliency_set)) == 0:
                     continue
-                source = dataset.relative_to(data_path).name
                 if verbose:
                     print(f"Generating saliency maps for {root}")
-                unisal.generate_predictions_from_path(Path(root), is_video=False, source=source)
+                unisal.generate_predictions_from_path(Path(root), is_video=False, source='MIT300')
 
 def compute_metrics(data_directory: str, verbose: bool = False):
     """

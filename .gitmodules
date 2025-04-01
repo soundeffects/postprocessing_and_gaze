@@ -1,3 +1,3 @@
 [submodule "unisal"]
-	path = unisal
+	path = scripts/unisal
 	url = https://github.com/rdroste/unisal
