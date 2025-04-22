@@ -1,14 +1,13 @@
 from argparse import ArgumentParser
 from csv import DictReader, DictWriter, writer
 from scripts.filters import all_filters, filter_names
-from numpy import ndarray, exp, sum, load, array, mean, median, std
+from numpy import array, mean, median, std
 from pathlib import Path
 from PIL import Image
-from scipy.ndimage import zoom
-from scipy.special import logsumexp, rel_entr
 from torch import cuda, backends, set_default_device
 from typing import Optional
 from unisal.unisal.train import Trainer
+from utilities import common_images, list_relative_paths, to_density, image_difference, kl_div, information_gain
 
 # Description of command line arguments
 parser = ArgumentParser(description='Compute predicted saliency metrics when \
@@ -52,96 +51,6 @@ if cuda.is_available():
 elif hasattr(backends, 'mps') and backends.mps.is_available():
     device = 'mps'
 set_default_device(device)
-
-# The error tolerance for the sum of a probability distribution, which should be
-# 1.0
-PDF_EPSILON = 1e-4
-
-# Reusable list of considered metrics
-metrics = [
-    'image_difference',
-    'saliency_divergence',
-    'saliency_divergence_log',
-    'divergence_per_difference',
-    'divergence_per_difference_log',
-    'base_information_gain',
-    'base_information_gain_log',
-    'filtered_information_gain',
-    'filtered_information_gain_log',
-    'information_asymmetry',
-    'information_asymmetry_log',
-    'information_asymmetry_per_difference',
-    'information_asymmetry_per_difference_log'
-]
-
-def list_relative_paths(path: Path) -> list[Path]:
-    """
-    List all files in a given directory relative to the given path.
-    """
-    return [ filename.relative_to(path) for filename in path.glob('*') ]
-
-def is_pdf(function: ndarray) -> bool:
-    """
-    Check if a function is a probability distribution.
-    """
-    return abs(function.sum() - 1) < PDF_EPSILON and function.min() >= 0 and function.max() <= 1
-
-def to_density(saliency_map: ndarray, log: bool = False) -> ndarray:
-    """
-    Convert a saliency map to a density distribution. If the 'log' parameter is
-    set to 'True', the saliency map will be converted to a log density
-    distribution.
-    """
-    density = saliency_map - logsumexp(saliency_map) if log \
-        else saliency_map / sum(saliency_map)
-    assert is_pdf(exp(density) if log else density)
-    return density
-
-def nonzero_pdf(pdf: ndarray) -> float:
-    """
-    Ensure that no sample of the PDF is zero (for log calculations) while
-    keeping the PDF sum at 1.0 within the PDF error tolerance.
-    """
-    # The remaining tolerance per sample is the remaining tolerance of the
-    # whole PDF, divided by the number of samples, halved to account for
-    # floating point error.
-    epsilon = (PDF_EPSILON + 1.0 - sum(pdf)) / pdf.size / 2.0
-    density = pdf + epsilon
-    assert is_pdf(density)
-    return density
-
-def kl_div(p: ndarray, q: ndarray, log: bool = False) -> float:
-    """
-    Compute the KL divergence between two density distributions, normalized
-    by the size of the distributions. If the 'log' parameter is set to 'True',
-    the distributions are assumed to be log density distributions.
-    """
-    assert p.shape == q.shape
-    p_div = exp(p) if log else nonzero_pdf(p)
-    q_div = exp(q) if log else nonzero_pdf(q)
-    assert is_pdf(p_div)
-    assert is_pdf(q_div)
-    return rel_entr(p_div, q_div).sum() / p_div.size
-
-def information_gain(p: ndarray, log: bool = False) -> float:
-    """
-    Compute the information gain of a gaze density distribution over an image-
-    independent distribution called the center bias. If the 'log' parameter is
-    set to 'True', the distributions are assumed to be log density
-    distributions.
-    """
-    center_bias = load('centerbias_mit1003.npy')
-    scaling_shape = (p.shape[0] / center_bias.shape[0], p.shape[1] / center_bias.shape[1])
-    center_bias = to_density(zoom(center_bias, scaling_shape, order=0, mode='nearest'), log)
-    return kl_div(p, center_bias, log)
-
-def image_difference(image_1: ndarray, image_2: ndarray) -> float:
-    """
-    Compute the summed pixel-wise squared difference between two images,
-    normalized by the number of pixels.
-    """
-    assert image_1.shape == image_2.shape
-    return ((image_1 - image_2) ** 2).sum() / image_1.size
 
 def apply_filters(data_directory: str, filters: list[callable], strength_subdivisions: int = 10, verbose: bool = False):
     """
@@ -189,6 +98,23 @@ def generate_saliency_maps(data_directory: str, unisal_path: str, verbose: bool 
                     print(f"Generating saliency maps for {root}")
                 unisal.generate_predictions_from_path(Path(root), is_video=False, source=source)
 
+# Reusable list of considered metrics
+metrics = [
+    'image_difference',
+    'saliency_divergence',
+    'saliency_divergence_log',
+    'divergence_per_difference',
+    'divergence_per_difference_log',
+    'base_information_gain',
+    'base_information_gain_log',
+    'filtered_information_gain',
+    'filtered_information_gain_log',
+    'information_asymmetry',
+    'information_asymmetry_log',
+    'information_asymmetry_per_difference',
+    'information_asymmetry_per_difference_log'
+]
+
 def compute_metrics(data_directory: str, verbose: bool = False):
     """
     Compute the normalized divergence and information gain between saliency maps
@@ -204,25 +130,20 @@ def compute_metrics(data_directory: str, verbose: bool = False):
             for filter_path in dataset.iterdir():
                 if not filter_path.is_dir() or filter_path == base_path or filter_path.name.startswith('barrel_distortion'):
                     continue
-                # Find intersection of image paths from all four sources being
-                # compared
-                common_image_paths =\
-                set(list_relative_paths(base_path / 'images')) &\
-                set(list_relative_paths(filter_path / 'images')) &\
-                set(list_relative_paths(base_path / 'saliency')) &\
-                set(list_relative_paths(filter_path / 'saliency'))
+                paths = [base_path / 'images', filter_path / 'images', base_path / 'saliency', filter_path / 'saliency']
+                common_image_paths = common_images(paths)
                 for image_path in common_image_paths:
-                    base_image = array(Image.open(base_path / 'images' / image_path))
-                    filtered_image = array(Image.open(filter_path / 'images' / image_path))
-                    base_saliency = array(Image.open(base_path / 'saliency' / image_path))
-                    filtered_saliency = array(Image.open(filter_path / 'saliency' / image_path))
+                    base_image = array(Image.open(paths[0] / image_path))
+                    filtered_image = array(Image.open(paths[1] / image_path))
+                    base_saliency = array(Image.open(paths[2] / image_path))
+                    filtered_saliency = array(Image.open(paths[3] / image_path))
                     base_density = to_density(base_saliency)
                     base_density_log = to_density(base_saliency, log=True)
                     filtered_density = to_density(filtered_saliency)
                     filtered_density_log = to_density(filtered_saliency, log=True)
                     if base_image.shape != filtered_image.shape:
                         print(f"Image 1 shape: {base_image.shape}, Image 2 shape: {filtered_image.shape}")
-                        print(f"Image 1 path: {base_path / 'images' / image_path}, Image 2 path: {filter_path / 'images' / image_path}")
+                        print(f"Image 1 path: {paths[0] / image_path}, Image 2 path: {paths[1] / image_path}")
                     image_difference_value = image_difference(base_image, filtered_image)
                     saliency_divergence = kl_div(base_density, filtered_density)
                     saliency_divergence_log = kl_div(base_density_log, filtered_density_log, log=True)

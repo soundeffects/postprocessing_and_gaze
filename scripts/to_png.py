@@ -15,6 +15,7 @@ def to_png(image_path: str, output_path: str):
     """
     image = Image.open(image_path)
     image.save(output_path, 'PNG')
+    image.close()
     remove(image_path)
 
 def to_png_directory(directory: str):
