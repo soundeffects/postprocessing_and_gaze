@@ -25,3 +25,7 @@ If you find this work useful, please cite it as follows (proper bibtex citation 
 ## License
 This project is licensed under the Apache License 2.0 - see the `license` file
 for details.
+
+## TODO
+- Produce data for DeepGaze IIE
+- Incorporate https://arxiv.org/abs/2211.08074 into introduction and related work
