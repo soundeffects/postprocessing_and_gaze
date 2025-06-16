@@ -1,11 +1,15 @@
-from numpy import ndarray, exp, sum, load
+from numpy import ndarray, exp, sum, load, float32
 from pathlib import Path
+from torch import cuda, backends, set_default_device, Tensor, tensor as torch_tensor
 from scipy.ndimage import zoom
 from scipy.special import logsumexp, rel_entr
 
 # The error tolerance for the sum of a probability distribution, which should be
 # 1.0
 PDF_EPSILON = 1e-4
+
+# Storing a global PyTorch device
+DEVICE = None
 
 def list_relative_paths(path: Path) -> list[Path]:
     """
@@ -59,6 +63,16 @@ def kl_div(p: ndarray, q: ndarray, log: bool = False, normalize: bool = True) ->
     divergence = rel_entr(p_div, q_div).sum()
     return divergence / p_div.size if normalize else divergence
 
+def load_centerbias(shape: tuple[int, int], log: bool = False):
+    """
+    Load the center bias from the MIT 1003 dataset and scale it to the given
+    shape. If the 'log' parameter is set to 'True', the center bias will be
+    converted to a log density distribution.
+    """
+    center_bias = load('scripts/centerbias_mit1003.npy')
+    scaling_shape = (shape[0] / center_bias.shape[0], shape[1] / center_bias.shape[1])
+    return to_density(zoom(center_bias, scaling_shape, order=0, mode='nearest'), log)
+
 def information_gain(p: ndarray, log: bool = False, normalize: bool = True) -> float:
     """
     Compute the information gain of a gaze density distribution over an image-
@@ -67,9 +81,7 @@ def information_gain(p: ndarray, log: bool = False, normalize: bool = True) -> f
     distributions. If the 'normalize' parameter is set to 'True', the
     information gain will be normalized by the size of the distributions.
     """
-    center_bias = load('centerbias_mit1003.npy')
-    scaling_shape = (p.shape[0] / center_bias.shape[0], p.shape[1] / center_bias.shape[1])
-    center_bias = to_density(zoom(center_bias, scaling_shape, order=0, mode='nearest'), log)
+    center_bias = load_centerbias(p.shape, log)
     return kl_div(p, center_bias, log, normalize)
 
 def image_difference(image_1: ndarray, image_2: ndarray, normalize: bool = True) -> float:
@@ -98,3 +110,27 @@ def information_asymmetry(p: ndarray, q: ndarray, log: bool = False, normalize: 
     information asymmetry will be normalized by the size of the distributions.
     """
     return information_gain(p, log, normalize) - information_gain(q, log, normalize)
+
+def pytorch_device() -> str:
+    """
+    Set the PyTorch device to use GPU/NPU acceleration if available.
+    """
+    global DEVICE
+    if DEVICE:
+        return DEVICE
+    DEVICE = 'cpu'
+    if cuda.is_available():
+        DEVICE = 'cuda'
+    elif hasattr(backends, 'mps') and backends.mps.is_available():
+        DEVICE = 'mps'
+    set_default_device(DEVICE)
+    print(f'Using {DEVICE} as pytorch device')
+    return DEVICE
+
+def tensor(data: ndarray) -> Tensor:
+    """
+    Create a PyTorch tensor, and automatically convert the floating point
+    precision to float32.
+    """
+    pytorch_device()
+    return torch_tensor(data.astype(float32))

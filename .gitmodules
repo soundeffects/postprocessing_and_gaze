@@ -1,3 +1,6 @@
 [submodule "unisal"]
 	path = scripts/unisal
 	url = https://github.com/rdroste/unisal
+[submodule "scripts/DeepGaze"]
+	path = scripts/DeepGaze
+	url = https://github.com/matthias-k/DeepGaze
